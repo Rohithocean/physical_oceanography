@@ -2,7 +2,7 @@ name: environment
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
+  - python
   - numpy
   - matplotlib
   - pandas
