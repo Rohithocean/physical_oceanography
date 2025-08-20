@@ -1,9 +1,0 @@
-requests
-bs4
-texthero
-pandas
-regex
-gensim
-texthero
-matplotlib
-ipywidgets
