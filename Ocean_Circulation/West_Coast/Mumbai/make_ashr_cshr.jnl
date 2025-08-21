@@ -1,0 +1,16 @@
+
+use ADCP_OMD_deep_2013_2018_daily.nc
+
+let u1 = uo[k=1:35,l=2:2179]
+let v1 = vo[k=1:35,l=2:2179]
+
+let pi= 3.14159
+let cshr_res_adcpbogd = u1*cos(7*pi/180) + v1*sin(7*pi/180)
+let ashr_res_adcpbogd = (-1)*u1*sin(7*pi/180) + v1*cos(7*pi/180)
+
+let ASOMD = ashr_res_adcpbogd[l=@fln]/100
+let CSOMD = cshr_res_adcpbogd[l=@fln]/100
+
+save/file=ADCP_OMD_2013_2018_ashr_cshr_daily_mps.nc/clob ASOMD, CSOMD
+
+

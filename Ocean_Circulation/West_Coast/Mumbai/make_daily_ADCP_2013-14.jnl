@@ -1,0 +1,43 @@
+
+!use "../hourly/KD10A000DC.nc"
+!use "../hourly/OKD9A000DC.nc"
+!use "../hourly/OKD8A000DC.nc"
+!use "../hourly/OKD7A000DC.nc"
+
+define axis/t="04-OCT-2012 10:00":"15-NOV-2013 10:00":1/t0="01-Jan-2004 09:00"/units=days tax1
+define axis/t="16-NOV-2013 10:00":"01-NOV-2014 10:00":1/t0="01-Jan-2004 09:00"/units=days tax2
+
+!define axis/t="17-NOV-2016 10:00":"08-OCT-2017 10:00":1/t0="01-Jan-2004 09:00"/units=days tax3
+!define axis/t="09-OCT-2017 10:00":"09-OCT-2018 10:00":1/t0="01-Jan-2004 09:00"/units=days tax4
+
+!###### The depth ranges for the above files in orders #########
+
+define axis/z=22:158:4/units=meters zax1
+define axis/z=22:182:4/units=meters zax2
+define axis/z=54:246:4/units=meters zax3
+define axis/z=22:174:4/units=meters zax4
+
+!## To make a consolidated depth axis where all the data can be mapped with gaps where there is no data for the file ###
+
+define axis/z=22:226:4/units=meters zax
+
+set mem/siz=50000
+
+use "../hourly/OMD5A000DC.nc"
+
+let UO = U_1205[d=1,gt=tax1@nrst,gz=zax]
+let VO = V_1206[d=1,gt=tax1@nrst,gz=zax]
+
+save/file=ADCP_Mumbai_2013_daily.nc/clob UO, VO
+
+can data/all
+can var/all
+
+use "../hourly/OMD6A000DC.nc"
+
+let UO = U_1205[d=1,gt=tax2@nrst,gz=zax]
+let VO = V_1206[d=1,gt=tax2@nrst,gz=zax]
+
+save/file=ADCP_Mumbai_2014_daily.nc/clob UO, VO
+
+
