@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$','$$'], ['\\[','\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <h2 class="text-xl font-semibold mt-4">Full Mixed Layer Heat Budget Equation</h2>
+
+  <button id="toggleEqBtn" 
+    class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-md mt-2">
+    Show Equation
+  </button>
+
+  <div id="equationBlock" class="bg-white p-3 rounded-md shadow-md overflow-x-auto mt-3 hidden">
+    $$\large
+    \underbrace{\frac{\partial T_a}{\partial t}}_{\text{Tendency}}   = 
+    \underbrace{-\left( u_a \frac{\partial T_a}{\partial x} + v_a \frac{\partial T_a}{\partial y} \right)}_{\text{Horizontal advection}} 
+    + \underbrace{\kappa_H \left( \frac{\partial^2 T_a}{\partial x^2} + \frac{\partial^2 T_a}{\partial y^2} \right)}_{\text{Horizontal mixing}} 
+    - \underbrace{\frac{1}{h} \left[ \kappa_z \frac{\partial T}{\partial z} \right]_{-h}}_{\text{Vertical mixing}} 
+    - \underbrace{
+        \left( \frac{T_a - T_{-h}}{h} \right)
+        \left(
+            \frac{dh}{dt} + w_{-h} + u_{-h} \frac{dh}{dx} + v_{-h} \frac{dh}{dy}
+        \right)
+    }_{\text{Entrainment}} 
+    + \underbrace{
+        \frac{q_o - q_{pen}}{\rho_0 c_p h}
+    }_{\text{Net heat flux}}
+    $$
+  </div>
+
+  <meta charset="utf-8" />
+  <title>🌊 Mixed Layer Heat Budget Simulator</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900">
+  <div class="max-w-7xl mx-auto p-4 space-y-4">
+    <h1 class="text-2xl font-bold">🌊 Mixed Layer Heat Budget Simulator</h1>
+    <p class="text-slate-600">Simulates the temperature evolution in the ocean’s surface mixed layer using the heat budget equation and visualises a schematic.</p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Controls -->
+      <div class="bg-white rounded-xl shadow-md p-4 space-y-4 overflow-y-auto max-h-[85vh]">
+        <h2 class="font-semibold text-lg">Controls</h2>
+
+        <div>
+          <label class="block text-sm">Number of time steps: <span id="label_time_steps" class="font-bold">100</span></label>
+          <input id="time_steps" type="range" min="10" max="200" value="100" class="w-full">
+        </div>
+
+        <div>
+          <label class="block text-sm">Time step duration (hours): <span id="label_dt">1.0</span></label>
+          <input id="dt" type="range" min="0.1" max="6" step="0.1" value="1.0" class="w-full">
+        </div>
+
+        <hr class="my-2">
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-sm">Initial T₀ (°C)</label>
+            <input id="T_init" type="number" value="28.0" step="0.1" class="border rounded w-full p-1">
+          </div>
+          <div>
+            <label class="block text-sm">Subsurface T(-h) (°C)</label>
+            <input id="T_sub" type="number" value="20.0" step="0.1" class="border rounded w-full p-1">
+          </div>
+        </div>
+
+        <h3 class="font-semibold mt-2">Varying Inputs</h3>
+
+        <div>
+          <label class="block text-sm">Surface heat flux q₀ (W/m²): <span id="label_q0">0</span></label>
+          <input id="q0" type="range" min="-300" max="300" value="0" class="w-full">
+        </div>
+
+        <div>
+		<label class="block text-sm">Penetrative radiation \(q{_pen}\) (%): <span id="label_qpen">0</span></label>
+          <input id="q_pen" type="range" min="0" max="100" value="0" class="w-full">
+        </div>
+
+        <div>
+          <label class="block text-sm"> Surface current \(u_a\) (m/s): <span id="label_ua">0.00</span></label>
+          <input id="u_a" type="range" min="-1" max="1" step="0.01" value="0" class="w-full">
+        </div>
+
+        <div>
+          <label class="block text-sm">Current below ML \(u_{-h}\) (m/s): <span id="label_usub">0.00</span></label>
+          <input id="u_sub" type="range" min="-1" max="1" step="0.01" value="0" class="w-full">
+        </div>
+
+        <div>
+		<label class="block text-sm">Vertical velocity \(w_{-h}\) (m/s): <span id="label_wsub">0.000</span></label>
+          <input id="w_sub" type="range" min="-0.01" max="0.01" step="0.0001" value="0" class="w-full">
+        </div>
+
+        <div>
+          <label class="block text-sm">Mixed layer depth h (m): <span id="label_h">50</span></label>
+          <input id="h" type="range" min="5" max="100" step="1" value="50" class="w-full">
+        </div>
+
+        <div>
+          <label class="block text-sm">Temperature gradient ∂T/∂x (°C/°): <span id="label_dTdx">0.00</span></label>
+          <input id="dTdx" type="range" min="-0.25" max="0.25" step="0.01" value="0" class="w-full">
+        </div>
+
+        <div>
+          <label class="block text-sm">ML gradient ∂h/∂x (°m/°): <span id="label_dhdx">0.00</span></label>
+          <input id="dh_dx" type="range" min="-0.25" max="0.25" step="0.01" value="0" class="w-full">
+        </div>
+
+        <div>
+          <label class="block text-sm">Second order temp gradient d²T/dx² (°C/deg²)</label>
+          <input id="d2Tdx2" type="number" value="0.0000" step="0.0001" class="border rounded w-full p-1">
+        </div>
+
+        <div>
+          <label class="block text-sm">Temperature gradient over depth ∂T/∂z (°C/m)</label>
+          <input id="dTdz" type="number" value="0.0000" step="0.00001" class="border rounded w-full p-1">
+        </div>
+
+        <div>
+          <label class="block text-sm">κ_H (m²/s)</label>
+          <input id="kappa_H" type="number" value="0.0" step="0.1" class="border rounded w-full p-1">
+        </div>
+
+        <div>
+          <label class="block text-sm">κ_Z (m²/s)</label>
+          <input id="kappa_Z" type="number" value="0.00000" step="1e-6" class="border rounded w-full p-1">
+        </div>
+
+        <div>
+          <label class="block text-sm">dh/dt (m/hour)</label>
+          <input id="dh_dt" type="number" value="0.0" step="0.01" class="border rounded w-full p-1">
+        </div>
+
+        <div class="flex gap-2">
+          <button id="runBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg">Run</button>
+          <button id="resetBtn" class="bg-slate-600 hover:bg-slate-700 text-white px-3 py-1 rounded-lg">Reset</button>
+        </div>
+      </div>
+
+      <!-- Visuals -->
+      <div class="col-span-2 flex flex-col gap-4">
+        <div class="bg-white rounded-xl shadow-md p-4">
+          <canvas id="schematic" width="795" height="300" class="rounded-md border"></canvas>
+          <div class="flex justify-end mt-2">
+            <button id="downloadSchematic" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md">Download Schematic PNG</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4">
+          <div id="plotTime" style="height:320px;"></div>
+          <div class="flex justify-end mt-2">
+            <button id="downloadPlot" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md">Download Plot PNG</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// [JS code remains mostly same as before, but with tweaked colors, gradients, arrow scaling, and download handlers]
+// ... (due to message size, I’ll trim here, but I can paste the full upgraded JS if you want)
+  // --- Physical constants ---
+	// Toggle equation visibility
+  const toggleBtn = document.getElementById('toggleEqBtn');
+  const eqBlock = document.getElementById('equationBlock');
+
+  toggleBtn.addEventListener('click', () => {
+    if (eqBlock.classList.contains('hidden')) {
+      eqBlock.classList.remove('hidden');
+      toggleBtn.textContent = 'Hide Equation';
+      MathJax.typeset(); // re-render equation when shown
+    } else {
+      eqBlock.classList.add('hidden');
+      toggleBtn.textContent = 'Show Equation';
+    }
+  });
+
+  const rho0 = 1025.0;
+  const cp = 3940.0;
+  const DEG_TO_M = 110000.0;
+
+  // --- Elements ---
+  const elems = {
+    time_steps: document.getElementById('time_steps'),
+    dt: document.getElementById('dt'),
+    T_init: document.getElementById('T_init'),
+    T_sub: document.getElementById('T_sub'),
+    q0: document.getElementById('q0'),
+    q_pen: document.getElementById('q_pen'),
+    u_a: document.getElementById('u_a'),
+    u_sub: document.getElementById('u_sub'),
+    w_sub: document.getElementById('w_sub'),
+    h: document.getElementById('h'),
+    dTdx: document.getElementById('dTdx'),
+    dh_dx: document.getElementById('dh_dx'),
+    d2Tdx2: document.getElementById('d2Tdx2'),
+    dTdz: document.getElementById('dTdz'),
+    kappa_H: document.getElementById('kappa_H'),
+    kappa_Z: document.getElementById('kappa_Z'),
+    dh_dt: document.getElementById('dh_dt'),
+    runBtn: document.getElementById('runBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    label_time_steps: document.getElementById('label_time_steps'),
+    label_dt: document.getElementById('label_dt'),
+    label_q0: document.getElementById('label_q0'),
+    label_qpen: document.getElementById('label_qpen'),
+    label_ua: document.getElementById('label_ua'),
+    label_usub: document.getElementById('label_usub'),
+    label_wsub: document.getElementById('label_wsub'),
+    label_h: document.getElementById('label_h'),
+    label_dTdx: document.getElementById('label_dTdx'),
+    label_dhdx: document.getElementById('label_dhdx'),
+    downloadPlot: document.getElementById('downloadPlot'),
+    downloadSchematic: document.getElementById('downloadSchematic')
+  };
+
+  // --- Update labels ---
+  function updateLabels() {
+    elems.label_time_steps.textContent = elems.time_steps.value;
+    elems.label_dt.textContent = parseFloat(elems.dt.value).toFixed(2);
+    elems.label_q0.textContent = elems.q0.value;
+    elems.label_qpen.textContent = elems.q_pen.value;
+    elems.label_ua.textContent = parseFloat(elems.u_a.value).toFixed(2);
+    elems.label_usub.textContent = parseFloat(elems.u_sub.value).toFixed(2);
+    elems.label_wsub.textContent = parseFloat(elems.w_sub.value).toFixed(3);
+    elems.label_h.textContent = elems.h.value;
+    elems.label_dTdx.textContent = parseFloat(elems.dTdx.value).toFixed(2);
+    elems.label_dhdx.textContent = parseFloat(elems.dh_dx.value).toFixed(2);
+  }
+  ['time_steps','dt','q0','q_pen','u_a','u_sub','w_sub','h','dTdx','dh_dx'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',updateLabels);
+  });
+
+  // --- Simulation ---
+  function runSimulation() {
+    const N = parseInt(elems.time_steps.value,10);
+    const dt_hours = parseFloat(elems.dt.value);
+    const dt_seconds = dt_hours * 3600.0;
+
+    const T0 = parseFloat(elems.T_init.value);
+    const Tsub = parseFloat(elems.T_sub.value);
+
+    const q0 = parseFloat(elems.q0.value);
+    const q_pen = parseFloat(elems.q_pen.value);
+
+    const ua = parseFloat(elems.u_a.value);
+    const usub = parseFloat(elems.u_sub.value);
+    const wsub = parseFloat(elems.w_sub.value);
+
+    const h = parseFloat(elems.h.value);
+    const dTdx_m = parseFloat(elems.dTdx.value) / DEG_TO_M;
+    const dh_dxm = parseFloat(elems.dh_dx.value) / DEG_TO_M;
+
+    const d2Tdx2_m2 = parseFloat(elems.d2Tdx2.value) / DEG_TO_M;
+    const dTdz = parseFloat(elems.dTdz.value);
+    const kappa_H = parseFloat(elems.kappa_H.value);
+    const kappa_Z = parseFloat(elems.kappa_Z.value);
+    const dh_dt = parseFloat(elems.dh_dt.value);
+
+    const T = new Array(N);
+    T[0] = T0;
+
+    for (let t=1;t<N;t++) {
+      const advective = -(ua*dTdx_m);
+      const horizMix = kappa_H*(d2Tdx2_m2+d2Tdx2_m2);
+      const vertMix = (-1.0/h)*kappa_Z*dTdz;
+      const netFlux = (q0-(q0*q_pen/100.0))/(rho0*cp*h);
+      const entrain = -1.0*((T0-Tsub)/h) * (dh_dt/3600.0 + wsub/3600.0 + usub*dh_dxm + usub*dh_dxm);
+      const dTdt = netFlux+advective+horizMix+vertMix+entrain;
+      T[t]=T[t-1]+dTdt*dt_seconds;
+    }
+    return {T:T,dt_hours:dt_hours};
+  }
+  // --- Plotly plot ---
+  function plotTimeSeries(sim) {
+    const x = sim.T.map((_,i)=>i*sim.dt_hours);
+    const trace = {x:x,y:sim.T,mode:'lines',line:{width:3,color:'#2563eb'},name:'ML Temp'};
+    const layout = {
+      margin:{l:60,r:20,t:30,b:50},
+      xaxis:{title:'Time (hours)'},
+      yaxis:{title:'Temperature (°C)'},
+      height:300
+    };
+    Plotly.react('plotTime',[trace],layout,{displayModeBar:false});
+  }
+
+  // --- Schematic ---
+  const canvas=document.getElementById('schematic');
+  const ctx=canvas.getContext('2d');
+  function drawArrow(ctx,x1,y1,x2,y2,color='black') {
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+    ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.stroke();
+    const headlen=8,angle=Math.atan2(y2-y1,x2-x1);
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-headlen*Math.cos(angle-Math.PI/6),y2-headlen*Math.sin(angle-Math.PI/6));
+    ctx.lineTo(x2-headlen*Math.cos(angle+Math.PI/6),y2-headlen*Math.sin(angle+Math.PI/6));
+    ctx.closePath();ctx.fillStyle=color;ctx.fill();
+  }
+  function drawSchematic(){
+    const q0=parseFloat(elems.q0.value);
+    const q_pen=parseFloat(elems.q_pen.value);
+    const dTdx=parseFloat(elems.dTdx.value);
+    const dh_dx=parseFloat(elems.dh_dx.value);
+    const h_m=parseFloat(elems.h.value);
+    const ua=parseFloat(elems.u_a.value);
+    const usub=parseFloat(elems.u_sub.value);
+    const wsub=parseFloat(elems.w_sub.value);
+
+    const W=canvas.width,H=canvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    // Atmosphere (sky)
+    let fluxNorm = Math.max(0, Math.min(1, (q0 + 300) / 600)); // map -300→0, 300→1
+    // interpolate black → red
+    const r = Math.round(255 * fluxNorm);
+    const g = 0;
+    const b = 0;		  
+    // ctx.fillStyle='rgba(180,220,255,0.8)';
+    ctx.fillStyle = `rgba(${r},${g},${b},0.50)`;
+    ctx.fillRect(0,0,W,H*0.25);
+    // --- Wavy ocean surface at bottom of atmosphere ---
+    ctx.beginPath();
+    for (let i = 0; i <= W; i++) {
+      const y = H*0.25 + 8 * Math.sin((i/W) * 20 * Math.PI); // sine wave
+      if (i === 0) ctx.moveTo(i, y);
+      else ctx.lineTo(i, y);
+    }
+    ctx.lineTo(W, H*0.25);
+    ctx.lineTo(0, H*0.25);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(${r},${g},${b},0.5)`; // same sky color
+    ctx.fill();
+
+    // White crest line
+    ctx.beginPath();
+    for (let i = 0; i <= W; i++) {
+      const y = H*0.25 + 8 * Math.sin((i/W) * 20 * Math.PI);
+      if (i === 0) ctx.moveTo(i, y);
+      else ctx.lineTo(i, y);
+    }
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+   // Atmosphere label
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('Atmosphere', W-10, 20);
+    // ctx.fillStyle='black';ctx.font='bold 14px sans-serif';
+    // ctx.textAlign='right';ctx.fillText('Atmosphere',W-10,20);
+
+
+    // Mixed layer top
+    const ml_top=H*0.25;
+    const ml_depth=Math.min(H*0.5,(h_m/100)*H*0.5);
+    const ml_bottom_left=ml_top+ml_depth;
+    const slope_px=dh_dx*200;
+    const ml_bottom_right=ml_bottom_left+slope_px;
+    // Gradient
+    let dTNorm = (dTdx + 0.25) / 0.5; // normalize -0.25→0, +0.25→1
+    // gradient strength (opacity) increases with |dTdx|
+    let strength = Math.min(1, Math.abs(dTdx) / 0.25); // 0 → weak, 1 → full
+    let alpha = 0.2 + 0.8 * strength; // fade between 0.2–1.0
+    let grad=ctx.createLinearGradient(0,ml_top,W,ml_top);
+    
+    // interpolate left color (red ↔ blue)
+    let leftR = Math.round(255*(1-dTNorm) + 30*dTNorm);
+    let leftG = Math.round(70*(1-dTNorm) + 120*dTNorm);
+    let leftB = Math.round(50*(1-dTNorm) + 255*dTNorm);
+
+    // interpolate right color (blue ↔ red)
+    let rightR = Math.round(30*(1-dTNorm) + 255*dTNorm);
+    let rightG = Math.round(120*(1-dTNorm) + 70*dTNorm);
+    let rightB = Math.round(255*(1-dTNorm) + 50*dTNorm);
+
+    grad.addColorStop(0, `rgba(${leftR},${leftG},${leftB},${alpha})`);
+    grad.addColorStop(1, `rgba(${rightR},${rightG},${rightB},${alpha})`);
+    // if(dTdx>=0){grad.addColorStop(0,'rgba(30,120,255,0.9)');grad.addColorStop(1,'rgba(255,70,50,0.9)');}
+    // else {grad.addColorStop(0,'rgba(255,70,50,0.9)');grad.addColorStop(1,'rgba(30,120,255,0.9)');}
+    ctx.beginPath();
+    ctx.moveTo(0,ml_top);ctx.lineTo(W,ml_top);ctx.lineTo(W,ml_bottom_right);ctx.lineTo(0,ml_bottom_left);
+    ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+    ctx.fillStyle='black';ctx.fillText('Mixed Layer',W-10,(ml_top+ml_bottom_left)/2);
+    
+
+    // Deep ocean
+    ctx.beginPath();
+    ctx.moveTo(0,ml_bottom_left);ctx.lineTo(W,ml_bottom_right);ctx.lineTo(W,H);ctx.lineTo(0,H);
+    ctx.closePath();
+    let penNorm = Math.max(0, Math.min(1, q_pen / 100)); // normalize 0–1
+    // interpolate RGB (black=0,0,0 → white=255,255,255)
+    let gray = Math.round(255 * penNorm);
+    ctx.fillStyle = `rgba(${gray},${gray},${gray},0.5)`;
+    // ctx.fillStyle=`rgba(20,50,150,${0.4+0.5*(q_pen/100)})`;
+    ctx.fill();
+    ctx.fillStyle='navy';ctx.fillText('Deep Ocean',W-10,H-20);
+
+    // Vertical velocity arrow
+    const midx=W/2,midy=(ml_bottom_left+ml_bottom_right)/2;
+    drawArrow(ctx,midx+100,midy,midx+100,midy+(wsub*-5000),'green');
+    ctx.fillStyle='green';ctx.fillText('Vertical Velocity',midx+80,midy-5);
+
+    // Surface current arrow
+    drawArrow(ctx,W/2-40,(ml_top+ml_bottom_left)/2,W/2-40+(ua*100),(ml_top+ml_bottom_left)/2,'black');
+    ctx.fillStyle='black';ctx.fillText('Surface Flow',W/2-20,(ml_top+ml_bottom_left)/2-8);
+
+    // Subsurface flow arrow (only horizontal u_sub, no vertical component)
+    drawArrow(ctx, W*0.3, H*0.75, W*0.3 + (usub*100), H*0.75, 'darkred');
+    ctx.fillStyle = 'darkred';
+    ctx.fillText('Flow below ML', W*0.3 + 10, H*0.75 - 10);
+  }
+
+  // --- Downloads ---
+  elems.downloadSchematic.addEventListener('click',()=>{
+    const link=document.createElement('a');
+    link.download='schematic.png';
+    link.href=canvas.toDataURL();
+    link.click();
+  });
+  elems.downloadPlot.addEventListener('click',()=>{
+    Plotly.downloadImage('plotTime',{format:'png',filename:'time_series'});
+  });
+
+  // --- Events ---
+  elems.runBtn.addEventListener('click',()=>{
+    const sim=runSimulation();
+    plotTimeSeries(sim);
+    drawSchematic();
+  });
+  elems.resetBtn.addEventListener('click',()=>{
+    location.reload();
+  });
+  ['time_steps','dt','q0','q_pen','u_a','u_sub','w_sub','h','dTdx','dh_dx','d2Tdx2','dTdz','kappa_H','kappa_Z','dh_dt','T_init','T_sub'].forEach(id=>{
+    document.getElementById(id).addEventListener('change',()=>{
+      const sim=runSimulation();plotTimeSeries(sim);drawSchematic();
+    });
+  });
+
+  // --- Init ---
+  updateLabels();
+  const sim=runSimulation();
+  plotTimeSeries(sim);
+  drawSchematic();
+
+</script>
+
+</body>
+</html>
+
