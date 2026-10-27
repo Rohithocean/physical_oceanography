@@ -15,9 +15,9 @@ Participants build their own Indian Ocean model inputs, compile and run ROMS, an
 
 ```mermaid
 flowchart LR
-    A["Notebook 1<br/>Grid_IC_BC_Preparation_Steps.ipynb"] -->|"roms_grd.nc<br/>roms_ini.nc<br/>roms_frc.nc<br/>roms_bry.nc"| D[("Google Drive<br/>MyDrive/ROMS_class/inputs")]
-    D --> B["Notebook 2<br/>ROMS_class_2026.ipynb"]
-    B --> C["ROMS output<br/>maps, sections,<br/>heat budget"]
+    A[Notebook 1: Grid_IC_BC_Preparation_Steps.ipynb] -->|roms_grd, roms_ini, roms_frc, roms_bry| D[(Google Drive: ROMS_class/inputs)]
+    D --> B[Notebook 2: ROMS_class_2026.ipynb]
+    B --> C[ROMS output: maps, sections, heat budget]
 ```
 
 Each Colab notebook runs on its own virtual machine, so the two notebooks share files through **Google Drive**.
@@ -174,6 +174,6 @@ Many examples come from real problems met while preparing this class.
 
 ## Authors and licence
 
-* Class material: [Names, institution]
-* Contact: [email]
-* Licence: [e.g. CC BY 4.0 for the slides and notebooks]
+* Class material: [Rohith B]
+* Contact: [rohith.b@incois.gov.in]
+* Licence: [CC BY 4.0 for the slides and notebooks]
